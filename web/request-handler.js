@@ -27,11 +27,12 @@ exports.handleRequest = function (req, res) {
         // if requested url is www.google.com then :
         //1. www.google.com should exist in sites.txt AND
         //2. www.google.com should be a file under sites
+      } else if (req.url.length > 1) {
         archive.isUrlArchived(req.url, function(isArchived) {
           if(isArchived) {
             fs.readFile(path.join(archive.paths.archivedSites,req.url),'utf8', function (err, content) {
               if(err) {
-                console.log(err);
+                console.log('error',err);
               } else {
                 statusCode = 200;
                 headers['Content-Type'] = 'text/html';
@@ -39,14 +40,20 @@ exports.handleRequest = function (req, res) {
                 res.end(content);
               }
             });
+          } else {
+           console.log('url does not exist');
+           statusCode = 404;
+           res.writeHead(statusCode, headers);
+           res.end();
           }
         });
-      } else if (results === false){
-        console.log('url does not exist');
-        statusCode = 404;
-        res.writeHead(statusCode, headers);
-        res.end();
       }
+      // else if (results === false){
+      //   console.log('url does not exist');
+      //   statusCode = 404;
+      //   res.writeHead(statusCode, headers);
+      //   res.end();
+      // }
     }
   });
   if(req.method === 'POST') {
