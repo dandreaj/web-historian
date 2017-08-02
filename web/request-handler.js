@@ -19,6 +19,7 @@ exports.handleRequest = function (req, res) {
             //console.log('fs.readFile failed :(\n', err)
           } else {
             statusCode = 200;
+            headers['Content-Type'] = 'text/html';
             res.writeHead(statusCode, headers);
             res.end(content);
           }
@@ -26,8 +27,20 @@ exports.handleRequest = function (req, res) {
         // if requested url is www.google.com then :
         //1. www.google.com should exist in sites.txt AND
         //2. www.google.com should be a file under sites
-      } else if (results) {
-        console.log('yay the url is there');
+        archive.isUrlArchived(req.url, function(isArchived) {
+          if(isArchived) {
+            fs.readFile(path.join(archive.paths.archivedSites,req.url),'utf8', function (err, content) {
+              if(err) {
+                console.log(err);
+              } else {
+                statusCode = 200;
+                headers['Content-Type'] = 'text/html';
+                res.writeHead(statusCode, headers);
+                res.end(content);
+              }
+            });
+          }
+        });
       } else if (results === false){
         console.log('url does not exist');
         statusCode = 404;
@@ -36,6 +49,44 @@ exports.handleRequest = function (req, res) {
       }
     }
   });
+  if(req.method === 'POST') {
+    var dataStream = '';
+    req.on('data', (data) => {
+      dataStream += data;
+    });
+    req.on('end', () => {
+      var url = dataStream.slice(4);
+      archive.isUrlInList(url, function(results) {
+        if(results) {
+          archive.isUrlArchived(url, function(results) {
+            if(results) {
+              fs.readFile(path.join(paths.archivedSites,url), 'utf8', function (err, content) {
+                if (err) {
+                  console.log('fs.readFile failed :(\n', err)
+                } else {
+                  statusCode = 302;
+                  headers['Content-Type'] = 'text/html';
+                  res.writeHead(statusCode, headers);
+                  res.end(content);
+                }
+              });
+            }
+          });
+        } else {
+          archive.addUrlToList(url, function(results) {
+            if(results) {
+              fs.readFile(__dirname + '/public/loading.html', 'utf8', function (err, content) {
+                statusCode = 302;
+                headers['Content-Type'] = 'text/html';
+                res.writeHead(statusCode, headers);
+                res.end(content);
+              });
+            }
+          });
+        }
+      });
+    });
+  }
   console.log(req.url.slice(1))
 
 
